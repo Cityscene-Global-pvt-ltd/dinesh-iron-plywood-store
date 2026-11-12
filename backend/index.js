@@ -38,6 +38,10 @@ app.use(
 
 app.use(express.json());
 
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 initSocket(server);
 initCronJobs();
 
