@@ -208,8 +208,8 @@ export const insertSupplierOrderTx = async (data) => {
         return connection.query(
           `INSERT INTO supplier_order_items (
             id, order_id, productId, hsn, name, qty, price, disc_percent, 
-            cgst, sgst, igst, gst_amount, price_after_gst, base_price, conversion_rate, size, unit
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            cgst, sgst, igst, gst_amount, price_after_gst, base_price, conversion_rate, size, unit, selected_unit
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             item.id || uuidv4(),
             data.id,
@@ -228,6 +228,7 @@ export const insertSupplierOrderTx = async (data) => {
             item.conversionRate,
             item.size,
             item.unit,
+            item.selectedUnit || item.unit,
           ],
         );
       });
@@ -287,8 +288,8 @@ export const updateSupplierOrderTx = async (orderId, data) => {
         return connection.query(
           `INSERT INTO supplier_order_items (
             id, order_id, productId, hsn, name, qty, price, disc_percent, 
-            cgst, sgst, igst, gst_amount, price_after_gst, base_price, conversion_rate, size, unit
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            cgst, sgst, igst, gst_amount, price_after_gst, base_price, conversion_rate, size, unit, selected_unit
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             item.id || uuidv4(),
             orderId,
@@ -307,6 +308,7 @@ export const updateSupplierOrderTx = async (orderId, data) => {
             item.conversionRate,
             item.size,
             item.unit,
+            item.selectedUnit || item.unit,
           ],
         );
       });
@@ -387,8 +389,8 @@ export const insertSupplierBillTx = async (
         await connection.query(
           `INSERT INTO supplier_bill_items (
             id, bill_id, product_id, hsn, name, ordered_qty, received_qty, 
-            price, disc_percent, cgst, sgst, igst, taxable_value, price_after_gst, base_price, conversion_rate, unit, size
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            price, disc_percent, cgst, sgst, igst, taxable_value, price_after_gst, base_price, conversion_rate, unit, size, selected_unit
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             uuidv4(),
             billData.id,
@@ -408,6 +410,7 @@ export const insertSupplierBillTx = async (
             item.conversionRate,
             item.unit,
             item.size,
+            item.selectedUnit || item.unit,
           ],
         );
 
@@ -428,10 +431,14 @@ export const insertSupplierBillTx = async (
               ? (currentBuyingPrice + newBuyingPrice) / 2
               : newBuyingPrice;
 
+          const stockQty = (item.selectedUnit && item.altUnitConversion && item.selectedUnit !== item.unit)
+            ? Number(item.receivedQty) * Number(item.altUnitConversion)
+            : item.receivedQty;
+
           await connection.query(
             `UPDATE inventory SET available_stock = available_stock + ?, buying_price = ?, selling_price = ?, hsn = ? WHERE id = ?`,
             [
-              item.receivedQty,
+              stockQty,
               finalAverageBuyingPrice.toFixed(2),
               newSellingPrice
                 ? newSellingPrice.toFixed(2)
@@ -443,8 +450,8 @@ export const insertSupplierBillTx = async (
         } else {
           await connection.query(
             `INSERT INTO inventory (
-                id, hsn, name, available_stock, inventory_type, unit, size, conversion_rate, buying_price, selling_price, created_by
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                id, hsn, name, available_stock, inventory_type, unit, size, conversion_rate, buying_price, selling_price, created_by, alt_unit, alt_unit_conversion
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               uuidv4(),
               item.hsn,
@@ -457,6 +464,8 @@ export const insertSupplierBillTx = async (
               newBuyingPrice.toFixed(2),
               newSellingPrice.toFixed(2),
               billData.created_by,
+              item.altUnit || null,
+              item.altUnitConversion || null,
             ],
           );
         }

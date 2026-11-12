@@ -3,9 +3,9 @@ import db from "../config/db.js";
 export const fetchAllProductsDB = async (canShowAll) => {
   const [products] = await db.query(`
     SELECT 
-      id, hsn, name, category, type, unit, inventory_type, 
+      id, hsn, name, category, type, unit, alt_unit, alt_unit_conversion, inventory_type, 
       size, color, available_stock, buying_price, 
-      selling_price, conversion_rate, created_by, created_at, updated_at 
+      selling_price, last_sold_price, conversion_rate, created_by, created_at, updated_at 
     FROM inventory 
     WHERE ${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"}
     ORDER BY created_at DESC
@@ -49,10 +49,10 @@ export const insertProductDB = async (data) => {
   const query = `
     INSERT INTO inventory (
       id, hsn, name, category, type, inventory_type, 
-      size, color, unit, available_stock, buying_price, 
+      size, color, unit, alt_unit, alt_unit_conversion, available_stock, buying_price, 
       selling_price, conversion_rate, created_by, created_at, updated_at
     ) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
   `;
 
   await db.query(query, [
@@ -65,6 +65,8 @@ export const insertProductDB = async (data) => {
     data.size,
     data.color,
     data.unit,
+    data.altUnit,
+    data.altUnitConversion,
     data.availableStock,
     data.buyingPrice,
     data.sellingPrice,
@@ -79,6 +81,7 @@ export const updateProductDB = async (id, data) => {
     SET 
       hsn = ?, name = ?, category = ?, type = ?, 
       inventory_type = ?, size = ?, color = ?, unit = ?, 
+      alt_unit = ?, alt_unit_conversion = ?,
       available_stock = ?, buying_price = ?, 
       selling_price = ?, conversion_rate = ?, updated_at = NOW()
     WHERE id = ?
@@ -92,6 +95,8 @@ export const updateProductDB = async (id, data) => {
     data.size,
     data.color,
     data.unit,
+    data.altUnit,
+    data.altUnitConversion,
     data.availableStock,
     data.buyingPrice,
     data.sellingPrice,
@@ -138,7 +143,7 @@ export const checkLowStockThresholdsDB = async (productIds, canShowAll) => {
 export const bulkInsertInventoryDB = async (dataArray) => {
   const query = `
     INSERT INTO inventory 
-    (id, hsn, name, category, type, inventory_type, unit, size, color, available_stock, buying_price, selling_price, conversion_rate, created_by) 
+    (id, hsn, name, category, type, inventory_type, unit, size, color, available_stock, buying_price, selling_price, conversion_rate, created_by, alt_unit, alt_unit_conversion) 
     VALUES ?
   `;
 

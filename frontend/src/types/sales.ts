@@ -19,8 +19,12 @@ export interface SelectedProduct {
   conversionRate: number;
   basePrice: number;
   unit: string;
+  selectedUnit?: string;
+  altUnit?: string;
+  altUnitConversion?: number;
   isNew?: boolean;
   customInflatedPrice?: number | string;
+  priceSource?: "CUSTOMER" | "GLOBAL_LAST" | "INVENTORY";
 }
 export interface PaymentsData {
   id?: string;

@@ -180,14 +180,14 @@ const Body1: React.FC<BodyProps> = ({
             </Text>
           </View>
           <Text style={[modernStyles.colQty, { fontSize: 10 }]}>
-            {item.qty}
+            {item.qty} {item.selectedUnit || item.unit || ""}
           </Text>
           <View style={modernStyles.colRate}>
             <Text style={{ fontSize: 10 }}>
               {Number(item.price || 0).toFixed(2)}
             </Text>
             <Text style={{ fontSize: 7, color: "#9ca3af" }}>
-              {Number(item.basePrice || 0).toFixed(2)} / {item.unit}
+              {Number(item.basePrice || 0).toFixed(2)} / {item.selectedUnit || item.unit}
             </Text>
           </View>
           <Text

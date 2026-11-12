@@ -49,7 +49,8 @@ const InventoryTable = ({
               {product.name}
               {product.size ? ` (${product.size})` : ""}{" "}
               {product.unit ? `(${product.unit})` : ""}
-              {product.color ? `(${product.color})` : ""}
+              {product.altUnit ? ` / ${product.altUnit}` : ""}
+              {product.color ? ` (${product.color})` : ""}
             </Table.Cell>
             {isSuperAdmin && activeTab === "all" && (
               <Table.Cell py={4} fontWeight="bold">
@@ -60,7 +61,14 @@ const InventoryTable = ({
               {product.hsn}
             </Table.Cell>
             <Table.Cell py={4} px={4} fontWeight="extrabold">
-              {product.availableStock}
+              <Stack gap={0}>
+                <Text>{product.availableStock} {product.unit || ""}</Text>
+                {product.altUnit && product.altUnitConversion && product.altUnitConversion > 0 ? (
+                  <Text fontSize="xs" color="gray.500">
+                    ≈ {(product.availableStock / product.altUnitConversion).toFixed(2)} {product.altUnit}
+                  </Text>
+                ) : null}
+              </Stack>
             </Table.Cell>
             <Table.Cell py={4} px={4}>
               <Stack gap={0}>
@@ -81,6 +89,11 @@ const InventoryTable = ({
                     ₹{product.sellingPrice} / {product?.unit || "unit"}
                   </Text>
                 )}
+                {product.altUnit && product.altUnitConversion && product.altUnitConversion > 0 ? (
+                  <Text fontSize="xs" color="blue.600" fontWeight="medium">
+                    ₹{(Number(product.sellingPrice) * Number(product.altUnitConversion) * Number(product.conversionRate || 1)).toFixed(2)} / {product.altUnit}
+                  </Text>
+                ) : null}
               </Stack>
             </Table.Cell>
             <Table.Cell py={4} px={4}>

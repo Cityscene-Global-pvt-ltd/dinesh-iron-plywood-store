@@ -224,12 +224,13 @@ export const SupplierPDFDocument = ({
               <Text style={styles.colQty}>
                 {isBill
                   ? safeNum(item.receivedQty || item.orderedQty)
-                  : safeNum(item.qty)}
+                  : safeNum(item.qty)}{" "}
+                {item.selectedUnit || item.unit || ""}
               </Text>
               <View style={styles.colRate}>
                 <Text>{safeNum(item.price).toFixed(2)}</Text>
                 <Text style={{ fontSize: 7, color: "#6b7280", marginTop: 2 }}>
-                  {safeNum(item.basePrice).toFixed(2)} / {item.unit || "unit"}
+                  {safeNum(item.basePrice).toFixed(2)} / {item.selectedUnit || item.unit || "unit"}
                 </Text>
               </View>
               <Text style={styles.colDisc}>{safeNum(item.discPercent)}%</Text>

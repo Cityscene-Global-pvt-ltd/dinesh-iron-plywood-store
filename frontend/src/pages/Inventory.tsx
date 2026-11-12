@@ -1,3 +1,4 @@
+
 import {
   Box,
   HStack,
@@ -7,9 +8,17 @@ import {
   Flex,
   Icon,
   Badge,
+  createListCollection,
 } from "@chakra-ui/react";
+import {
+  SelectRoot,
+  SelectTrigger,
+  SelectValueText,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Text } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import InventoryTable from "@/components/inventory/InventoryTable";
 import { InventoryModal } from "@/components/inventory/InventoryModal";
 import {
@@ -59,6 +68,8 @@ const Inventory = () => {
   );
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [unitFilter, setUnitFilter] = useState("ALL");
+  const [stockFilter, setStockFilter] = useState("ALL");
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -83,6 +94,36 @@ const Inventory = () => {
     }
   }, [searchParams, allProducts, setSearchParams]);
 
+  // Extract all unique units and alt units for filtering
+  const availableUnits = useMemo(() => {
+    const unitSet = new Set<string>();
+    allProducts.forEach((p: Product) => {
+      if (p.unit && p.unit.trim()) unitSet.add(p.unit.trim().toUpperCase());
+      if (p.altUnit && p.altUnit.trim()) unitSet.add(p.altUnit.trim().toUpperCase());
+    });
+    return Array.from(unitSet).sort();
+  }, [allProducts]);
+
+  const unitFilterCollection = useMemo(() => {
+    return createListCollection({
+      items: [
+        { label: "All Units", value: "ALL" },
+        ...availableUnits.map((u) => ({ label: u, value: u })),
+      ],
+    });
+  }, [availableUnits]);
+
+  const stockFilterCollection = useMemo(() => {
+    return createListCollection({
+      items: [
+        { label: "All Stock", value: "ALL" },
+        { label: "In Stock (>0)", value: "IN_STOCK" },
+        { label: "Out of Stock (0)", value: "OUT_OF_STOCK" },
+        { label: "Low Stock (≤5)", value: "LOW_STOCK" },
+      ],
+    });
+  }, []);
+
   const displayProducts = allProducts.filter((p: Product) => {
     const matchesTab = isSuperAdmin
       ? activeTab === "all"
@@ -94,9 +135,25 @@ const Inventory = () => {
       p.hsn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.type?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
       p.unit?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
+      p.altUnit?.toLowerCase()?.includes(searchQuery.toLowerCase()) ||
       p.category?.toLowerCase()?.includes(searchQuery.toLowerCase());
 
-    return matchesTab && matchesSearch;
+    const matchesUnit =
+      unitFilter === "ALL" ||
+      p.unit?.toUpperCase() === unitFilter ||
+      p.altUnit?.toUpperCase() === unitFilter;
+
+    let matchesStock = true;
+    const stock = Number(p.availableStock || 0);
+    if (stockFilter === "IN_STOCK") {
+      matchesStock = stock > 0;
+    } else if (stockFilter === "OUT_OF_STOCK") {
+      matchesStock = stock <= 0;
+    } else if (stockFilter === "LOW_STOCK") {
+      matchesStock = stock <= 5;
+    }
+
+    return matchesTab && matchesSearch && matchesUnit && matchesStock;
   });
 
   const handleAdd = () => {
@@ -257,17 +314,56 @@ const Inventory = () => {
             <Tabs.Indicator />
           </Tabs.List>
         )}
-        <HStack gap="4" width="full">
-          <Box flex="1">
+        <HStack gap="4" width="full" mb={4} wrap="wrap">
+          <Box flex="1" minW="220px">
             <SearchBar
-              placeholder="Search products..."
+              placeholder="Search products, units..."
               value={searchQuery}
               onChange={setSearchQuery}
             />
           </Box>
 
+          <Box minW="150px">
+            <SelectRoot
+              collection={unitFilterCollection}
+              value={[unitFilter]}
+              onValueChange={(e) => setUnitFilter(e.value[0] || "ALL")}
+              size="sm"
+            >
+              <SelectTrigger bg="white">
+                <SelectValueText placeholder="Filter by Unit" />
+              </SelectTrigger>
+              <SelectContent portalled={false}>
+                {unitFilterCollection.items.map((i) => (
+                  <SelectItem key={i.value} item={i}>
+                    {i.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
+          </Box>
+
+          <Box minW="150px">
+            <SelectRoot
+              collection={stockFilterCollection}
+              value={[stockFilter]}
+              onValueChange={(e) => setStockFilter(e.value[0] || "ALL")}
+              size="sm"
+            >
+              <SelectTrigger bg="white">
+                <SelectValueText placeholder="Filter by Stock" />
+              </SelectTrigger>
+              <SelectContent portalled={false}>
+                {stockFilterCollection.items.map((i) => (
+                  <SelectItem key={i.value} item={i}>
+                    {i.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </SelectRoot>
+          </Box>
+
           <HStack gap={2}>
-            {" "}
             {isSuperAdmin && (
               <>
                 <input
@@ -328,6 +424,7 @@ const Inventory = () => {
             activeTab={activeTab}
           />
         </Tabs.Content>
+
         <Tabs.Content value="all">
           <InventoryTable
             products={displayProducts}
@@ -346,13 +443,14 @@ const Inventory = () => {
         product={selectedProduct}
         mode={modalMode}
       />
+
       <CustomDeleteDialog
-        isOpen={!!productToDelete}
+        isOpen={Boolean(productToDelete)}
         onClose={() => setProductToDelete(null)}
         onConfirm={handleConfirmDelete}
+        title="Delete Product"
+        description={`Are you sure you want to delete "${productToDelete?.name}"? This action cannot be undone.`}
         loading={isDeleting}
-        title="Delete Product?"
-        description={`Are you sure you want to delete "${productToDelete?.name}"? This action will permanently remove the item from inventory.`}
       />
     </Box>
   );

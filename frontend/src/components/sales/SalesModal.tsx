@@ -41,7 +41,7 @@ const generateUUID = (): string => {
   });
 };
 import { toast } from "@/utils/toast";
-import { useGetReferencesQuery, useGetCustomersQuery } from "@/store/apiSlice";
+import { useGetReferencesQuery, useGetCustomersQuery, useLazyGetCustomerItemPricesQuery } from "@/store/apiSlice";
 import { Button } from "../ui/button";
 import { getISTDateString, formatDate } from "@/utils/dateUtils";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
@@ -62,6 +62,9 @@ export const SalesModal = ({
   const { referralPercent, priceInflationPercent } = useSystemSettings();
   const { data: references = [] } = useGetReferencesQuery();
   const { data: allCustomers = [] } = useGetCustomersQuery();
+  const [fetchCustomerPrices] = useLazyGetCustomerItemPricesQuery();
+  // { [productId]: lastPrice } – loaded when a customer is selected
+  const [customerItemPrices, setCustomerItemPrices] = useState<Record<string, number>>({});
   const [currentMode, setCurrentMode] = useState(initialMode);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -289,6 +292,46 @@ export const SalesModal = ({
     }
   }, [isShippingSame, isOpen, isView]);
 
+  // Fetch customer-specific price history when customer changes
+  useEffect(() => {
+    if (customerData.customerId && !isView) {
+      fetchCustomerPrices(customerData.customerId)
+        .unwrap()
+        .then((prices) => {
+          setCustomerItemPrices(prices);
+          // If items were already added, update unedited ones with this customer's price
+          setSelectedItems((prevItems) =>
+            prevItems.map((item) => {
+              if (item.customInflatedPrice !== undefined && item.customInflatedPrice !== "") {
+                return item;
+              }
+              const prodId = item.productId || item.id;
+              if (prodId && prices[prodId] !== undefined) {
+                const customerPrice = Number(prices[prodId]);
+                return getCalculatedItem(
+                  {
+                    ...item,
+                    basePrice: customerPrice,
+                    originalBasePrice: customerPrice,
+                    priceSource: "CUSTOMER",
+                  },
+                  gstType,
+                  selectedReferenceId,
+                  priceInflationPercent,
+                );
+              }
+              return item;
+            }),
+          );
+        })
+        .catch(() => {
+          setCustomerItemPrices({});
+        });
+    } else if (!customerData.customerId) {
+      setCustomerItemPrices({});
+    }
+  }, [customerData.customerId, isView, gstType, selectedReferenceId, priceInflationPercent]);
+
   useEffect(() => {
     if (selectedItems.length > 0 && !isView) {
       setSelectedItems((prevItems) =>
@@ -333,6 +376,7 @@ export const SalesModal = ({
       color: p.color || "",
       hsn: p.hsn || "",
       unit: p.unit || "",
+      altUnit: p.altUnit || "",
     })),
   });
 
@@ -385,14 +429,6 @@ export const SalesModal = ({
       paymentData.amountPaid,
     ]);
 
-  // const hasStockError = selectedItems.some((item) => {
-  //   const stock =
-  //     products.find((p) => p.id === item.id || p.id === item?.productId)
-  //       ?.availableStock ?? 0;
-
-  //   return Number(item.qty) > stock;
-  // });
-
   const getCalculatedItem = (
     item: any,
     gstType: string,
@@ -412,7 +448,12 @@ export const SalesModal = ({
       ? Number(item.customInflatedPrice)
       : computedInflatedPrice;
 
-    const priceBeforeDisc = inflatedPrice * cRate;
+    // Apply alt unit conversion to price when alt unit is selected
+    const altUnitMultiplier = (item.selectedUnit && item.altUnit && item.altUnitConversion && item.selectedUnit === item.altUnit)
+      ? Number(item.altUnitConversion)
+      : 1;
+
+    const priceBeforeDisc = inflatedPrice * cRate * altUnitMultiplier;
     const finalPrice = priceBeforeDisc - (priceBeforeDisc * discPercent) / 100;
     const taxable = finalPrice * qty;
 
@@ -437,6 +478,21 @@ export const SalesModal = ({
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
+    // ── 3-Tier price selection ──────────────────────────────────
+    // Tier 1: Customer's last price for this exact product
+    // Tier 2: Last price this product was sold to anyone (global)
+    // Tier 3: Inventory default selling price
+    let effectiveBasePrice = Number(product.sellingPrice) || 0;
+    let priceSource: "CUSTOMER" | "GLOBAL_LAST" | "INVENTORY" = "INVENTORY";
+    if (customerData.customerId && product.id && customerItemPrices[product.id] !== undefined) {
+      effectiveBasePrice = Number(customerItemPrices[product.id]);
+      priceSource = "CUSTOMER";
+    } else if (product.lastSoldPrice && Number(product.lastSoldPrice) > 0) {
+      effectiveBasePrice = Number(product.lastSoldPrice);
+      priceSource = "GLOBAL_LAST";
+    }
+    // ────────────────────────────────────────────────────────────
+
     const lineId = generateUUID(); // unique key for this row (polyfill-safe)
     const initialItem = {
       id: product.id,
@@ -447,11 +503,15 @@ export const SalesModal = ({
       size: product.size || "",
       color: product.color || "",
       qty: 1,
-      basePrice: product.sellingPrice || 0,
-      originalBasePrice: product.sellingPrice || 0,
+      basePrice: effectiveBasePrice,
+      originalBasePrice: effectiveBasePrice,
+      priceSource,
       conversionRate: product.conversionRate || 1,
       itemDiscPercent: 0,
       unit: product.unit || "unit",
+      selectedUnit: product.unit || "unit",
+      altUnit: product.altUnit || "",
+      altUnitConversion: product.altUnitConversion || 0,
       cgst: 0,
       sgst: 0,
       igst: 0,
@@ -495,6 +555,7 @@ export const SalesModal = ({
 
   const columns = [
     { label: "Product", align: "start" as const },
+    { label: "Unit", align: "start" as const },
     { label: "Qty", align: "start" as const },
     { label: "Rate (After Disc)", align: "center" as const },
     { label: "Disc (%)", align: "start" as const },
@@ -673,6 +734,15 @@ export const SalesModal = ({
     return { isValid: errors.length === 0, errors };
   };
 
+  // Build a unit selector collection for a given item
+  const getUnitCollection = (item: SelectedProduct) => {
+    const items = [{ label: item.unit || "unit", value: item.unit || "unit" }];
+    if (item.altUnit && item.altUnitConversion && item.altUnitConversion > 0) {
+      items.push({ label: `${item.altUnit} (1=${item.altUnitConversion} ${item.unit})`, value: item.altUnit });
+    }
+    return createListCollection({ items });
+  };
+
   return (
     <CustomModal
       width="75%"
@@ -705,11 +775,6 @@ export const SalesModal = ({
           toast.error(validation.errors[0]);
           return;
         }
-
-        // if (hasStockError) {
-        //   toast.error("Some items have insufficient stock.");
-        //   return;
-        // }
 
         if (
           paymentData.paymentMode !== "CASH" &&
@@ -1422,6 +1487,7 @@ export const SalesModal = ({
                     <Text textTransform="uppercase" whiteSpace="normal" wordBreak="break-word">
                       {i.label} ({i.hsn}) {i.size ? `- ${i.size}` : ""}{" "}
                       {i.unit ? `- ${i.unit}` : ""}
+                      {(i as any).altUnit ? ` / ${(i as any).altUnit}` : ""}
                       {i.color ? `- ${i.color}` : ""}
                     </Text>
                   </SelectItem>
@@ -1436,12 +1502,9 @@ export const SalesModal = ({
             columns={columns}
             data={selectedItems}
             renderRow={(item, _index) => {
-              // const stock =
-              //   products.find((p) => p.id === item.id)?.availableStock ?? 0;
-
-              // const isOverStock = Number(item.qty) > stock;
               const isReadOnlyItem = isView || (isEdit && !item.isNew);
-              // Every row gets its own lineId as React key
+              const unitCollection = getUnitCollection(item);
+              const hasAltUnit = !!(item.altUnit && item.altUnitConversion && item.altUnitConversion > 0);
               return (
                 <Table.Row key={item.lineId || item.id}>
                   <Table.Cell fontWeight="medium">
@@ -1464,6 +1527,35 @@ export const SalesModal = ({
                       )}
                     </Box>
                   </Table.Cell>
+                  <Table.Cell width="130px">
+                    {hasAltUnit && !isReadOnlyItem ? (
+                      <SelectRoot
+                        collection={unitCollection}
+                        value={[item.selectedUnit || item.unit || "unit"]}
+                        onValueChange={(e) => {
+                          if (e.value[0]) {
+                            updateItem(item.lineId!, { selectedUnit: e.value[0] });
+                          }
+                        }}
+                        size="sm"
+                      >
+                        <SelectTrigger>
+                          <SelectValueText />
+                        </SelectTrigger>
+                        <SelectContent portalled={false}>
+                          {unitCollection.items.map((u) => (
+                            <SelectItem key={u.value} item={u}>
+                              {u.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </SelectRoot>
+                    ) : (
+                      <Text fontSize="sm" fontWeight="medium">
+                        {item.selectedUnit || item.unit || "unit"}
+                      </Text>
+                    )}
+                  </Table.Cell>
                   <Table.Cell width="110px">
                     <Input
                       type="number"
@@ -1471,14 +1563,6 @@ export const SalesModal = ({
                       value={item.qty === 0 ? "" : item.qty}
                       readOnly={isReadOnlyItem}
                       min={0}
-                      // borderColor={
-                      //   !isView && !isEdit && isOverStock
-                      //     ? "red.500"
-                      //     : undefined
-                      // }
-                      // bg={
-                      //   !isView && !isEdit && isOverStock ? "red.50" : undefined
-                      // }
                       onChange={(e) =>
                         updateItem(item.lineId!, { qty: Number(e.target.value) })
                       }
@@ -1497,13 +1581,25 @@ export const SalesModal = ({
                           type="number"
                           size="sm"
                           value={item.customInflatedPrice !== undefined ? item.customInflatedPrice : Number(item.basePrice).toFixed(2)}
-                          onChange={(e) => updateItem(item.lineId!, { customInflatedPrice: e.target.value })}
+                          onChange={(e) => updateItem(item.lineId!, { customInflatedPrice: e.target.value, priceSource: undefined })}
                           readOnly={isReadOnlyItem}
                         />
                       </HStack>
-                      <Text fontSize="2xs" color="gray.500" textAlign="center">
-                        ₹{Number(item.price).toFixed(2)} / {item.unit || "unit"} (after disc)
-                      </Text>
+                      <HStack justify="space-between" fontSize="2xs">
+                        <Text fontSize="2xs" color="gray.500">
+                          ₹{Number(item.price).toFixed(2)} / {item.selectedUnit || item.unit || "unit"}
+                        </Text>
+                        {item.priceSource === "CUSTOMER" && (
+                          <Badge size="xs" colorPalette="green" variant="subtle" title="Last rate billed to this customer">
+                            Customer
+                          </Badge>
+                        )}
+                        {item.priceSource === "GLOBAL_LAST" && (
+                          <Badge size="xs" colorPalette="blue" variant="subtle" title="Last rate billed across all customers">
+                            Last Sold
+                          </Badge>
+                        )}
+                      </HStack>
                     </VStack>
                   </Table.Cell>
                   <Table.Cell width="90px">

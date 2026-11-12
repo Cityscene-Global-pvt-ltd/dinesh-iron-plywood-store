@@ -1,4 +1,4 @@
-import { Input, Stack, Grid, Field, HStack } from "@chakra-ui/react";
+import { Input, Stack, Grid, Field, HStack, Text } from "@chakra-ui/react";
 import { CustomModal } from "@/components/ui/CustomModal";
 import { useState, useEffect } from "react";
 import { InventoryModalProps, Product } from "@/types/inventory";
@@ -19,6 +19,8 @@ export const InventoryModal = ({
     category: "",
     type: "",
     unit: "",
+    altUnit: "",
+    altUnitConversion: undefined,
     size: "",
     color: "",
     availableStock: 0,
@@ -41,6 +43,8 @@ export const InventoryModal = ({
         category: "",
         type: "",
         unit: "",
+        altUnit: "",
+        altUnitConversion: undefined,
         size: "",
         color: "",
         availableStock: 0,
@@ -91,6 +95,13 @@ export const InventoryModal = ({
 
     if (data.sellingPrice < data.buyingPrice) {
       errors.push("Selling price cannot be less than buying price");
+    }
+
+    // Validate alt unit conversion - if alt unit is set, conversion must be > 0
+    if (data.altUnit && data.altUnit.trim() !== "") {
+      if (!data.altUnitConversion || data.altUnitConversion <= 0) {
+        errors.push("Alt Unit Conversion must be greater than 0 when Alt Unit is set");
+      }
     }
 
     return {
@@ -193,7 +204,7 @@ export const InventoryModal = ({
               value={formData.unit}
               onChange={(e) => handleChange("unit", e.target.value)}
               readOnly={isViewMode}
-              placeholder="Unit"
+              placeholder="Unit (e.g. PCS, KG)"
             />
           </Field.Root>
 
@@ -205,6 +216,39 @@ export const InventoryModal = ({
               readOnly={isViewMode}
               placeholder="Size"
             />
+          </Field.Root>
+
+          <Field.Root>
+            <Field.Label>Alt Unit</Field.Label>
+            <Input
+              value={formData.altUnit || ""}
+              onChange={(e) => handleChange("altUnit", e.target.value)}
+              readOnly={isViewMode}
+              placeholder="e.g. BOX, BUNDLE"
+            />
+          </Field.Root>
+
+          <Field.Root>
+            <Field.Label>Alt Unit Conversion</Field.Label>
+            <Input
+              type="number"
+              value={formData.altUnitConversion || ""}
+              placeholder="e.g. 12 (1 BOX = 12 PCS)"
+              min={0}
+              onChange={(e) =>
+                handleChange("altUnitConversion", Number(e.target.value) || undefined)
+              }
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onKeyDown={(e) =>
+                ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+              }
+              readOnly={isViewMode}
+            />
+            {formData.altUnit && formData.altUnitConversion && formData.unit ? (
+              <Text fontSize="xs" color="gray.500" mt={1}>
+                1 {formData.altUnit.toUpperCase()} = {formData.altUnitConversion} {formData.unit.toUpperCase()}
+              </Text>
+            ) : null}
           </Field.Root>
 
           <Field.Root>

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MdOutlineSettings, MdLogout, MdHome } from "react-icons/md";
 import { NAV_ITEMS } from "@/constants/navigation";
 import NotificationBell from "./notification/NotificationBell";
+import { ColorModeButton } from "./ui/color-mode";
 import { useDispatch } from "react-redux";
 import { logout } from "@/store/authSlice";
 import { apiSlice } from "@/store/apiSlice";
@@ -62,6 +63,8 @@ const Navbar = () => {
         </HStack>
 
         <HStack gap={1}>
+          <ColorModeButton />
+
           <IconButton
             variant="ghost"
             aria-label="Settings"

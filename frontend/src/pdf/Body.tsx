@@ -236,7 +236,9 @@ const Body: React.FC<BodyProps> = ({
                 HSN: {item.hsn}
               </Text>
             </View>
-            <Text style={styles.colQty}>{item.qty}</Text>
+            <Text style={styles.colQty}>
+              {item.qty} {item.selectedUnit || item.unit || ""}
+            </Text>
             <View style={styles.colRate}>
               <Text style={{ textAlign: "right" }}>
                 {Number(item.price || 0).toFixed(2)}
@@ -244,7 +246,7 @@ const Body: React.FC<BodyProps> = ({
               <Text
                 style={{ textAlign: "right", fontSize: 7, color: "#6b7280" }}
               >
-                {Number(item.basePrice || 0).toFixed(2)} / {item.unit}
+                {Number(item.basePrice || 0).toFixed(2)} / {item.selectedUnit || item.unit}
               </Text>
             </View>
             <Text style={styles.colDisc}>
@@ -286,7 +288,9 @@ const Body: React.FC<BodyProps> = ({
                 <Text style={styles.miniColItem}>
                   {item.itemName || item.name}
                 </Text>
-                <Text style={styles.miniColQty}>x{item.returnQty}</Text>
+                <Text style={styles.miniColQty}>
+                  x{item.returnQty} {item.selected_unit || item.unit || ""}
+                </Text>
                 <Text style={styles.miniColRefund}>
                   Rs. {Number(item.priceAfterGst || 0).toFixed(2)}
                 </Text>

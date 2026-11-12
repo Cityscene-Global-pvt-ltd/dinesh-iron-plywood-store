@@ -63,8 +63,8 @@ export const modifyReference = async (id, data, user) => {
     email: data.email || null,
     mobile: data.mobile,
     address: data.address || null,
-    points: data.points || 0,
-    redeemedPoints: data.redeemedPoints || 0,
+    points: data.points !== undefined ? data.points : oldRef.points,
+    redeemedPoints: data.redeemedPoints !== undefined ? data.redeemedPoints : oldRef.redeemed_points,
     status: data.status || "Active",
     remarks: data.remarks || null,
   };
@@ -128,4 +128,81 @@ export const removeReference = async (id, user) => {
     },
     targets,
   );
+};
+
+export const redeemPoints = async (referenceId, data, user) => {
+  const points = Number(data.points);
+  if (!points || points <= 0) {
+    throw new Error("Points to redeem must be greater than 0");
+  }
+
+  const amount = Number(data.amount !== undefined ? data.amount : points);
+  const redemptionId = uuidv4();
+
+  const redemptionPayload = {
+    id: redemptionId,
+    referenceId,
+    points,
+    amount,
+    paymentMode: data.paymentMode || "CASH",
+    referenceNo: data.referenceNo || null,
+    notes: data.notes || null,
+    redemptionDate: data.redemptionDate || new Date().toISOString().split("T")[0],
+    createdBy: user?.name || user?.id || "Admin",
+  };
+
+  const result = await repo.redeemReferencePointsTx(redemptionPayload);
+
+  emitGlobalUpdate(["References"]);
+
+  const targets = [{ target_type: "ROLE", target_value: "SUPER_ADMIN" }];
+  if (user?.role !== "SUPER_ADMIN") {
+    targets.push({ target_type: "ROLE", target_value: "ADMIN" });
+  }
+
+  await processNewNotification(
+    {
+      type: "REFERENCE_REDEEMED",
+      title: "Points Redeemed",
+      message: `${result.referenceName} redeemed ${points} points (₹${amount.toFixed(2)}) via ${redemptionPayload.paymentMode}. Processed by ${user?.name || "Admin"}.`,
+      reference_module: "references",
+      reference_id: referenceId,
+    },
+    targets,
+  );
+
+  return result;
+};
+
+export const getReferenceRedemptions = async (referenceId) => {
+  const redemptions = await repo.getRedemptionsByReferenceIdDB(referenceId);
+  return toCamelCase(redemptions);
+};
+
+export const getAllRedemptions = async () => {
+  const redemptions = await repo.getAllRedemptionsDB();
+  return toCamelCase(redemptions);
+};
+
+export const cancelRedemption = async (redemptionId, user) => {
+  const reverted = await repo.deleteRedemptionTx(redemptionId);
+  emitGlobalUpdate(["References"]);
+
+  const targets = [{ target_type: "ROLE", target_value: "SUPER_ADMIN" }];
+  if (user?.role !== "SUPER_ADMIN") {
+    targets.push({ target_type: "ROLE", target_value: "ADMIN" });
+  }
+
+  await processNewNotification(
+    {
+      type: "REDEMPTION_CANCELLED",
+      title: "Redemption Reverted",
+      message: `Redemption of ${reverted.points} points was reverted by ${user?.name || "Admin"}. Points restored.`,
+      reference_module: "references",
+      reference_id: reverted.reference_id,
+    },
+    targets,
+  );
+
+  return reverted;
 };

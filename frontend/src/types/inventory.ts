@@ -5,6 +5,8 @@ export interface Product {
   category: string;
   type: string;
   unit: string;
+  altUnit?: string;
+  altUnitConversion?: number;
   size: string;
   color: string;
   availableStock: number;
@@ -12,6 +14,7 @@ export interface Product {
   sellingPrice: number;
   inventoryType?: string;
   conversionRate: number;
+  lastSoldPrice?: number;
 }
 
 export type ModalMode = "add" | "view" | "edit";

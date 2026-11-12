@@ -200,3 +200,13 @@ export const resolveAnomaly = async (req, res) => {
     res.status(500).json({ message: error.message || "Error resolving anomaly" });
   }
 };
+
+export const getCustomerPrices = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const prices = await salesService.getCustomerItemPrices(customerId);
+    res.status(200).json(prices);
+  } catch (error) {
+    res.status(500).json({ message: error.message || "Failed to fetch customer item prices" });
+  }
+};

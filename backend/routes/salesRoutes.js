@@ -11,13 +11,15 @@ import {
   deletePayment,
   deleteReturn,
   getAnomalies,
-  resolveAnomaly
+  resolveAnomaly,
+  getCustomerPrices,
 } from "../controllers/salesControllers.js";
 import upload from "../middleware/upload.js";
 
 const router = express.Router();
 router.post("/", createSale);
 router.get("/", getAllSales);
+router.get("/customer-prices/:customerId", getCustomerPrices);
 router.put("/:id", updateSale);
 router.delete("/:id", deleteSale);
 router.post("/return", createReturn);

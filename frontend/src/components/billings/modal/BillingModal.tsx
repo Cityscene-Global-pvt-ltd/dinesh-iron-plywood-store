@@ -1,3 +1,4 @@
+
 import {
   Box,
   Stack,
@@ -314,7 +315,9 @@ export const BillingModal = ({
                     HSN: {item.hsn}
                   </Text>
                 </Table.Cell>
-                <Table.Cell textAlign="center">{item.qty}</Table.Cell>
+                <Table.Cell textAlign="center">
+                  {item.qty} {item.selectedUnit || item.unit || ""}
+                </Table.Cell>
                 <Table.Cell textAlign="end">
                   <VStack align="end">
                     <Text fontWeight="bold">
@@ -322,7 +325,7 @@ export const BillingModal = ({
                     </Text>
                     <Text fontSize="2xs" color="gray.500">
                       ₹{Number(item.basePrice).toFixed(2)} /{" "}
-                      {item.unit || "unit"}
+                      {item.selectedUnit || item.unit || "unit"}
                     </Text>
                   </VStack>
                 </Table.Cell>
@@ -440,7 +443,7 @@ export const BillingModal = ({
                               {item.itemName || item.name}
                             </Table.Cell>
                             <Table.Cell fontSize="2xs" textAlign="end">
-                              {item.returnQty}
+                              {item.returnQty} {item.selectedUnit || item.unit || ""}
                             </Table.Cell>
                             <Table.Cell
                               fontSize="2xs"

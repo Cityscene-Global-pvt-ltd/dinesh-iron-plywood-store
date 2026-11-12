@@ -32,6 +32,8 @@ export const createNewProduct = async (data, creator, user) => {
     size: data.size || null,
     color: data.color || null,
     unit: data.unit || null,
+    altUnit: data.altUnit || null,
+    altUnitConversion: data.altUnitConversion || null,
     availableStock: data.availableStock || 0,
     buyingPrice: data.buyingPrice || 0,
     sellingPrice: data.sellingPrice || 0,
@@ -81,6 +83,8 @@ export const modifyProduct = async (id, data, user) => {
     size: data.size || null,
     color: data.color || null,
     unit: data.unit || null,
+    altUnit: data.altUnit || null,
+    altUnitConversion: data.altUnitConversion || null,
     availableStock: data.availableStock || 0,
     buyingPrice: data.buyingPrice || 0,
     sellingPrice: data.sellingPrice || 0,
@@ -207,6 +211,8 @@ export const bulkImportInventory = async (file, user) => {
     const buyPrice = Number(getCellValue("buying_price") || 0);
     const sellPrice = Number(getCellValue("selling_price") || 0);
     const conversionRate = Number(getCellValue("conversion_rate") || 1);
+    const altUnit = getCellValue("alt_unit") || null;
+    const altUnitConversion = getCellValue("alt_unit_conversion") ? Number(getCellValue("alt_unit_conversion")) : null;
     return [
       uuidv4(),
       hsn,
@@ -222,6 +228,8 @@ export const bulkImportInventory = async (file, user) => {
       sellPrice,
       conversionRate,
       user.id,
+      altUnit,
+      altUnitConversion,
     ];
   });
 

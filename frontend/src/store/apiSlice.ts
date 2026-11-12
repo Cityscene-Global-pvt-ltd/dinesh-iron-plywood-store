@@ -291,6 +291,29 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["References"],
     }),
+    redeemReferencePoints: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `api/references/${id}/redeem`,
+        method: "POST",
+        data: body,
+      }),
+      invalidatesTags: ["References"],
+    }),
+    getReferenceRedemptions: builder.query<any[], string>({
+      query: (id) => ({ url: `api/references/${id}/redemptions`, method: "GET" }),
+      providesTags: ["References"],
+    }),
+    getAllRedemptions: builder.query<any[], void>({
+      query: () => ({ url: "api/references/redemptions/all", method: "GET" }),
+      providesTags: ["References"],
+    }),
+    cancelRedemption: builder.mutation({
+      query: (redemptionId) => ({
+        url: `api/references/redemptions/${redemptionId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["References"],
+    }),
     getSettings: builder.query<any, void>({
       query: () => ({ url: "api/settings", method: "get" }),
       providesTags: ["Settings"],
@@ -548,7 +571,10 @@ export const apiSlice = createApi({
       query: ({ month, year }) => ({ url: `api/salary/summary/${month}/${year}`, method: "get" }),
       providesTags: ["Salary", "Leaves", "Advances"],
     }),
-    paySalary: builder.mutation({
+
+    getCustomerItemPrices: builder.query<Record<string, number>, string>({
+      query: (customerId) => ({ url: `api/sales/customer-prices/${customerId}`, method: "get" }),
+    }),    paySalary: builder.mutation({
       query: (data) => ({
         url: "api/salary/pay",
         method: "post",
@@ -595,6 +621,11 @@ export const {
   useAddReferenceMutation,
   useUpdateReferenceMutation,
   useDeleteReferenceMutation,
+  useRedeemReferencePointsMutation,
+  useGetReferenceRedemptionsQuery,
+  useLazyGetReferenceRedemptionsQuery,
+  useGetAllRedemptionsQuery,
+  useCancelRedemptionMutation,
   useGetSettingsQuery,
   useUpdateSettingsMutation,
   useExportDatabaseMutation,
@@ -640,4 +671,6 @@ export const {
   useResolveAnomalyMutation,
   useGetSalarySummaryQuery,
   usePaySalaryMutation,
+  useGetCustomerItemPricesQuery,
+  useLazyGetCustomerItemPricesQuery,
 } = apiSlice;

@@ -99,6 +99,8 @@ export const processNewSale = async (data, creator, user) => {
     conversionRate: Number(item.conversionRate),
     itemDiscPercent: Number(item.itemDiscPercent),
     unit: item.unit,
+    selectedUnit: item.selectedUnit || item.unit,
+    altUnitConversion: Number(item.altUnitConversion) || null,
     hsn: item.hsn || null,
     cgst: item.cgst || 0,
     sgst: item.sgst || 0,
@@ -431,6 +433,8 @@ export const processNewReturn = async (data, creator, user) => {
     conversion_rate: item.conversion_rate,
     item_disc_percent: item.item_disc_percent,
     unit: item.unit,
+    selected_unit: item.selected_unit || item.unit,
+    alt_unit_conversion: Number(item.alt_unit_conversion) || null,
     cgst: item.cgst || 0,
     sgst: item.sgst || 0,
     igst: item.igst || 0,
@@ -614,4 +618,12 @@ export const resolveAnomaly = async (saleId, action, payload, user) => {
   
   await repo.resolveAnomalyTx(saleId, action, payload);
   emitGlobalUpdate(["Sales", "Customers", "Inventory"]);
+};
+
+/**
+ * Returns { productId: lastPrice } for the given customer.
+ * Tier 1 lookup – O(1) from customer_item_prices cache table.
+ */
+export const getCustomerItemPrices = async (customerId) => {
+  return await repo.getCustomerItemPricesDB(customerId);
 };

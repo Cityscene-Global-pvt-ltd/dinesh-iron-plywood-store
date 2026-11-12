@@ -39,6 +39,72 @@ export const getPaymentByIdDB = async (paymentId) => {
   return rows.length > 0 ? rows[0] : null;
 };
 
+// ───────────────────────────────────────────────────────────────
+// Price history helpers
+// ───────────────────────────────────────────────────────────────
+
+/**
+ * Update customer_item_prices, product_last_prices and inventory.last_sold_price
+ * inside an already-open transaction connection.
+ */
+export const updatePriceHistoryTx = async (connection, customerId, items, saleId, saleDate) => {
+  if (!items || !items.length) return;
+  for (const item of items) {
+    const prodId = item.id || item.productId || item.product_id;
+    const priceToRecord = Number(item.basePrice || item.base_price || item.price || 0);
+    if (!prodId || priceToRecord <= 0) continue;
+
+    // 1. Update global last price for the product
+    await connection.query(
+      `INSERT INTO product_last_prices (product_id, last_price, last_sale_id, last_sale_date, updated_at)
+       VALUES (?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         last_price = VALUES(last_price),
+         last_sale_id = VALUES(last_sale_id),
+         last_sale_date = VALUES(last_sale_date),
+         updated_at = NOW()`,
+      [prodId, priceToRecord, saleId, saleDate || new Date()],
+    );
+
+    // 2. Keep inventory.last_sold_price in sync (fast lookup)
+    await connection.query(
+      `UPDATE inventory SET last_sold_price = ? WHERE id = ?`,
+      [priceToRecord, prodId],
+    );
+
+    // 3. Customer-specific price record
+    if (customerId) {
+      await connection.query(
+        `INSERT INTO customer_item_prices (id, customer_id, product_id, last_price, last_sale_id, last_sale_date, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE
+           last_price = VALUES(last_price),
+           last_sale_id = VALUES(last_sale_id),
+           last_sale_date = VALUES(last_sale_date),
+           updated_at = NOW()`,
+        [uuidv4(), customerId, prodId, priceToRecord, saleId, saleDate || new Date()],
+      );
+    }
+  }
+};
+
+/**
+ * Fetch { productId -> lastPrice } map for a given customer.
+ * Returns an empty object when no history exists.
+ */
+export const getCustomerItemPricesDB = async (customerId) => {
+  if (!customerId) return {};
+  const [rows] = await db.query(
+    `SELECT product_id, last_price FROM customer_item_prices WHERE customer_id = ?`,
+    [customerId],
+  );
+  const priceMap = {};
+  for (const row of rows) {
+    priceMap[row.product_id] = Number(row.last_price);
+  }
+  return priceMap;
+};
+
 export const createSaleTx = async (saleData, itemsData) => {
   const connection = await db.getConnection();
   try {
@@ -56,9 +122,13 @@ export const createSaleTx = async (saleData, itemsData) => {
       //     `Insufficient stock for ${item.name}. Available: ${currentStock}`,
       //   );
 
+      const stockQty = (item.selectedUnit && item.altUnitConversion && item.selectedUnit !== item.unit)
+        ? Number(item.qty) * Number(item.altUnitConversion)
+        : item.qty;
+
       await connection.query(
         `UPDATE inventory SET available_stock = available_stock - ?, updated_at = NOW() WHERE id = ?`,
-        [item.qty, item.id],
+        [stockQty, item.id],
       );
     }
 
@@ -107,7 +177,7 @@ export const createSaleTx = async (saleData, itemsData) => {
 
     const itemQueries = itemsData.map((item, index) => {
       return connection.query(
-        `INSERT INTO sale_items (id, sale_id, product_id, name, hsn, qty, base_price, price, cgst, sgst, igst, gst_amount, price_after_gst, conversion_rate, item_disc_percent, unit, item_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sale_items (id, sale_id, product_id, name, hsn, qty, base_price, price, cgst, sgst, igst, gst_amount, price_after_gst, conversion_rate, item_disc_percent, unit, selected_unit, item_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           item.itemId,
           saleData.id,
@@ -125,6 +195,7 @@ export const createSaleTx = async (saleData, itemsData) => {
           item.conversionRate,
           item.itemDiscPercent,
           item.unit,
+          item.selectedUnit,
           index,
         ],
       );
@@ -160,6 +231,10 @@ export const createSaleTx = async (saleData, itemsData) => {
     }
 
     await Promise.all(itemQueries);
+
+    // Update price history tables for all items
+    await updatePriceHistoryTx(connection, saleData.customerId, itemsData, saleData.id, saleData.saleDate);
+
     await connection.commit();
   } catch (error) {
     await connection.rollback();
@@ -222,8 +297,8 @@ export const updateSaleTx = async (id, data) => {
           `INSERT INTO sale_items (
             sale_id, id, product_id, name, hsn, qty, base_price,
             price, cgst, sgst, igst, gst_amount, price_after_gst, 
-            conversion_rate, item_disc_percent, unit, item_index
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            conversion_rate, item_disc_percent, unit, selected_unit, item_index
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             uuidv4(),
@@ -241,15 +316,29 @@ export const updateSaleTx = async (id, data) => {
             item.conversionRate,
             item.itemDiscPercent,
             item.unit,
+            item.selectedUnit || item.unit,
             i,
           ],
         );
 
+        const stockQty = (item.selectedUnit && item.altUnitConversion && item.selectedUnit !== item.unit)
+          ? Number(item.qty) * Number(item.altUnitConversion)
+          : item.qty;
+
         await connection.query(
           `UPDATE inventory SET available_stock = available_stock - ?, updated_at = NOW() WHERE id = ?`,
-          [item.qty, item.productId],
+          [stockQty, item.productId],
         );
       }
+    }
+
+    // Update price history for new items being added
+    const newItems = data.items.filter((i) => i.isNew);
+    if (newItems.length > 0) {
+      await updatePriceHistoryTx(connection, data.customerId, newItems.map(i => ({
+        id: i.productId,
+        basePrice: i.basePrice,
+      })), id, data.saleDate);
     }
 
     await connection.commit();
@@ -370,12 +459,27 @@ export const deleteSaleTx = async (id) => {
     await connection.beginTransaction();
 
     const [itemsToRestore] = await connection.query(
-      `SELECT si.product_id, si.qty as sold_qty, COALESCE(SUM(ri.return_qty), 0) as total_returned FROM sale_items si LEFT JOIN returns r ON si.sale_id = r.original_sale_id LEFT JOIN return_items ri ON r.id = ri.return_id AND si.product_id = ri.product_id WHERE si.sale_id = ? GROUP BY si.product_id, si.qty`,
+      `SELECT si.product_id, si.qty as sold_qty, si.selected_unit, si.unit,
+        i.alt_unit_conversion,
+        COALESCE(SUM(ri.return_qty), 0) as total_returned 
+      FROM sale_items si 
+      LEFT JOIN inventory i ON si.product_id = i.id
+      LEFT JOIN returns r ON si.sale_id = r.original_sale_id 
+      LEFT JOIN return_items ri ON r.id = ri.return_id AND si.product_id = ri.product_id 
+      WHERE si.sale_id = ? 
+      GROUP BY si.product_id, si.qty, si.selected_unit, si.unit, i.alt_unit_conversion`,
       [id],
     );
 
     for (const item of itemsToRestore) {
-      const netToRestore = Number(item.sold_qty) - Number(item.total_returned);
+      const selectedUnit = item.selected_unit;
+      const unit = item.unit;
+      const altConversion = item.alt_unit_conversion;
+      const soldQty = Number(item.sold_qty);
+      const totalReturned = Number(item.total_returned);
+      const netToRestore = (selectedUnit && altConversion && selectedUnit !== unit)
+        ? (soldQty - totalReturned) * Number(altConversion)
+        : (soldQty - totalReturned);
       if (netToRestore > 0) {
         await connection.query(
           `UPDATE inventory SET available_stock = available_stock + ? WHERE id = ?`,
@@ -513,9 +617,13 @@ export const createReturnTx = async (returnData, returnItemsData) => {
         item.product_id = fallbackRows[0].id;
       }
 
+      const stockQty = (item.selected_unit && item.alt_unit_conversion && item.selected_unit !== item.unit)
+        ? Number(item.return_qty) * Number(item.alt_unit_conversion)
+        : item.return_qty;
+
       await connection.query(
         `UPDATE inventory SET available_stock = available_stock + ?, updated_at = NOW() WHERE id = ?`,
-        [item.return_qty, item.product_id],
+        [stockQty, item.product_id],
       );
     }
 
@@ -574,7 +682,7 @@ export const createReturnTx = async (returnData, returnItemsData) => {
 
     const itemQueries = returnItemsData.map((item, index) => {
       return connection.query(
-        `INSERT INTO return_items (id, return_id, product_id, name, hsn, sold_qty, return_qty, base_price, price, cgst, sgst, igst, gst_amount, price_after_gst, conversion_rate, item_disc_percent, unit, item_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO return_items (id, return_id, product_id, name, hsn, sold_qty, return_qty, base_price, price, cgst, sgst, igst, gst_amount, price_after_gst, conversion_rate, item_disc_percent, unit, selected_unit, item_index) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           item.itemId,
           returnData.id,
@@ -593,6 +701,7 @@ export const createReturnTx = async (returnData, returnItemsData) => {
           item.conversion_rate,
           item.item_disc_percent,
           item.unit,
+          item.selected_unit,
           index,
         ],
       );
@@ -635,14 +744,21 @@ export const deleteReturnTx = async (id) => {
     const { original_sale_id, net_refund } = returnRows[0];
 
     const [items] = await connection.query(
-      `SELECT product_id, return_qty FROM return_items WHERE return_id = ?`,
+      `SELECT ri.product_id, ri.return_qty, ri.selected_unit, ri.unit, i.alt_unit_conversion 
+       FROM return_items ri 
+       LEFT JOIN inventory i ON ri.product_id = i.id 
+       WHERE ri.return_id = ?`,
       [id]
     );
 
     for (const item of items) {
+      const stockQty = (item.selected_unit && item.alt_unit_conversion && item.selected_unit !== item.unit)
+        ? Number(item.return_qty) * Number(item.alt_unit_conversion)
+        : item.return_qty;
+
       await connection.query(
         `UPDATE inventory SET available_stock = available_stock - ?, updated_at = NOW() WHERE id = ?`,
-        [item.return_qty, item.product_id]
+        [stockQty, item.product_id]
       );
     }
 

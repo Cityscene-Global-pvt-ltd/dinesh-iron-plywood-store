@@ -81,3 +81,53 @@ export const deleteReference = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const redeemPoints = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    const result = await referenceService.redeemPoints(id, req.body, user);
+    res.status(200).json({ message: "Points redeemed successfully", data: result });
+  } catch (error) {
+    if (error.message === "REFERENCE_NOT_FOUND") {
+      return res.status(404).json({ message: "Reference not found" });
+    }
+    if (error.message.startsWith("INSUFFICIENT_POINTS") || error.message.includes("greater than 0")) {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: error.message || "Failed to redeem points" });
+  }
+};
+
+export const getReferenceRedemptions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const redemptions = await referenceService.getReferenceRedemptions(id);
+    res.status(200).json(redemptions);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching redemptions" });
+  }
+};
+
+export const getAllRedemptions = async (req, res) => {
+  try {
+    const redemptions = await referenceService.getAllRedemptions();
+    res.status(200).json(redemptions);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching all redemptions" });
+  }
+};
+
+export const cancelRedemption = async (req, res) => {
+  try {
+    const { redemptionId } = req.params;
+    const user = req.user;
+    const reverted = await referenceService.cancelRedemption(redemptionId, user);
+    res.status(200).json({ message: "Redemption reverted successfully", data: reverted });
+  } catch (error) {
+    if (error.message === "REDEMPTION_NOT_FOUND") {
+      return res.status(404).json({ message: "Redemption not found" });
+    }
+    res.status(500).json({ message: error.message || "Failed to cancel redemption" });
+  }
+};

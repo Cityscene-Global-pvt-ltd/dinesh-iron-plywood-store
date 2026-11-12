@@ -11,6 +11,22 @@ export interface Reference {
   remarks?: string;
 }
 
+export interface RedemptionRecord {
+  id: string;
+  referenceId: string;
+  referenceName?: string;
+  referenceNumber?: string;
+  referenceMobile?: string;
+  points: number;
+  amount: number;
+  paymentMode: string;
+  referenceNo?: string;
+  notes?: string;
+  redemptionDate: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
 export interface ReferenceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,5 +40,20 @@ export interface ReferenceTableProps {
   onView: (ref: Reference) => void;
   onEdit: (ref: Reference) => void;
   onDelete: (ref: Reference) => void;
+  onRedeem: (ref: Reference) => void;
+  onHistory: (ref: Reference) => void;
   isLoading: boolean;
+}
+
+export interface RedeemModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  reference: Reference | null;
+  onSuccess?: () => void;
+}
+
+export interface RedemptionHistoryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  reference: Reference | null;
 }
