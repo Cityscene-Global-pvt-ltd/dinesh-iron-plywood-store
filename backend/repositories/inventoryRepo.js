@@ -1,16 +1,33 @@
 import db from "../config/db.js";
 
 export const fetchAllProductsDB = async (canShowAll) => {
-  const [products] = await db.query(`
-    SELECT 
-      id, hsn, name, category, type, unit, alt_unit, alt_unit_conversion, inventory_type, 
-      size, color, available_stock, min_stock_threshold, buying_price, 
-      selling_price, last_sold_price, conversion_rate, created_by, created_at, updated_at 
-    FROM inventory 
-    WHERE ${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"}
-    ORDER BY created_at DESC
-  `);
-  return products;
+  try {
+    const [products] = await db.query(`
+      SELECT 
+        id, hsn, name, category, type, unit, alt_unit, alt_unit_conversion, inventory_type, 
+        size, color, available_stock, min_stock_threshold, buying_price, 
+        selling_price, last_sold_price, conversion_rate, created_by, created_at, updated_at 
+      FROM inventory 
+      WHERE ${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"}
+      ORDER BY created_at DESC
+    `);
+    return products;
+  } catch (err) {
+    // If min_stock_threshold column does not exist yet on legacy DB schemas, fallback seamlessly
+    if (err.message && err.message.includes("min_stock_threshold")) {
+      const [products] = await db.query(`
+        SELECT 
+          id, hsn, name, category, type, unit, alt_unit, alt_unit_conversion, inventory_type, 
+          size, color, available_stock, NULL as min_stock_threshold, buying_price, 
+          selling_price, last_sold_price, conversion_rate, created_by, created_at, updated_at 
+        FROM inventory 
+        WHERE ${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"}
+        ORDER BY created_at DESC
+      `);
+      return products;
+    }
+    throw err;
+  }
 };
 
 export const getProductByIdDB = async (id, canShowAll) => {
