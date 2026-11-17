@@ -15,9 +15,26 @@ const styles = StyleSheet.create({
   infoGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 25,
+    marginBottom: 15,
   },
   infoBox: { width: "48%" },
+  transportBox: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 15,
+  },
+  transportGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  transportItem: {
+    width: "31%",
+    marginBottom: 4,
+  },
   sectionLabel: {
     fontSize: 8,
     fontWeight: "bold",
@@ -196,6 +213,63 @@ export const SupplierPDFDocument = ({
             <Text>GST: {source?.shippingGst || "N/A"}</Text>
           </View>
         </View>
+
+        {(source?.transportName ||
+          source?.transportContact ||
+          source?.lrNumber ||
+          source?.transportMode ||
+          source?.expectedDeliveryDate ||
+          safeNum(source?.freightAmount) > 0 ||
+          source?.transportNotes ||
+          data?.vehicleNumber) && (
+          <View style={styles.transportBox} wrap={false}>
+            <Text style={styles.sectionLabel}>Transport & Logistics Details</Text>
+            <View style={styles.transportGrid}>
+              {source?.transportName && (
+                <View style={styles.transportItem}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport / Transporter:</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source.transportName}</Text>
+                </View>
+              )}
+              {source?.transportContact && (
+                <View style={styles.transportItem}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport Contact:</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source.transportContact}</Text>
+                </View>
+              )}
+              {(source?.lrNumber || data?.vehicleNumber) && (
+                <View style={styles.transportItem}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>LR / Bilty / Vehicle No:</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source?.lrNumber || data?.vehicleNumber}</Text>
+                </View>
+              )}
+              {source?.transportMode && (
+                <View style={styles.transportItem}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport Mode:</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source.transportMode}</Text>
+                </View>
+              )}
+              {source?.expectedDeliveryDate && (
+                <View style={styles.transportItem}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>Expected Delivery:</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{formatDate(source.expectedDeliveryDate)}</Text>
+                </View>
+              )}
+              {safeNum(source?.freightAmount) > 0 && (
+                <View style={styles.transportItem}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>Freight Amount:</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>₹{safeNum(source.freightAmount).toFixed(2)}</Text>
+                </View>
+              )}
+              {source?.transportNotes && (
+                <View style={[styles.transportItem, { width: "100%", marginTop: 2 }]}>
+                  <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport Notes:</Text>
+                  <Text style={{ fontSize: 8 }}>{source.transportNotes}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         <View style={styles.table}>
           <View style={styles.tableHeader} wrap={false}>
