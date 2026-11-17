@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { runAutoMigrations } from "./config/autoMigrate.js";
 import settingRoutes from "./routes/settingRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
@@ -65,6 +66,7 @@ app.use("/api/advances", advanceRoutes);
 app.use("/api/salary", salaryRoutes);
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  await runAutoMigrations();
 });
