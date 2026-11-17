@@ -14,7 +14,33 @@ export const runAutoMigrations = async () => {
       console.log("[Migration] Added min_stock_threshold to inventory table.");
     }
 
-    // 2. Ensure transport columns exist in supplier_orders table
+    // 2. Ensure last_sold_price column exists in inventory table
+    const [lspCols] = await db.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory' AND COLUMN_NAME = 'last_sold_price'`
+    );
+    if (lspCols.length === 0) {
+      console.log("[Migration] Adding last_sold_price to inventory table...");
+      await db.query(
+        `ALTER TABLE inventory ADD COLUMN last_sold_price DECIMAL(10,2) DEFAULT NULL AFTER selling_price`
+      );
+      console.log("[Migration] Added last_sold_price to inventory table.");
+    }
+
+    // 3. Ensure alt_unit and alt_unit_conversion exist in inventory table
+    const [altCols] = await db.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory' AND COLUMN_NAME = 'alt_unit'`
+    );
+    if (altCols.length === 0) {
+      console.log("[Migration] Adding alt_unit columns to inventory table...");
+      await db.query(`
+        ALTER TABLE inventory 
+          ADD COLUMN alt_unit VARCHAR(50) DEFAULT NULL AFTER unit,
+          ADD COLUMN alt_unit_conversion DECIMAL(15,4) DEFAULT NULL AFTER alt_unit
+      `);
+      console.log("[Migration] Added alt_unit columns to inventory table.");
+    }
+
+    // 4. Ensure transport columns exist in supplier_orders table
     const [soCols] = await db.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'supplier_orders' AND COLUMN_NAME = 'transport_name'`
     );
@@ -33,7 +59,7 @@ export const runAutoMigrations = async () => {
       console.log("[Migration] Added transport columns to supplier_orders table.");
     }
 
-    // 3. Ensure reference_redemptions table exists
+    // 5. Ensure reference_redemptions table exists
     await db.query(`
       CREATE TABLE IF NOT EXISTS reference_redemptions (
         id VARCHAR(50) PRIMARY KEY,
@@ -48,21 +74,7 @@ export const runAutoMigrations = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // 4. Ensure alt_unit and alt_unit_conversion exist in inventory table
-    const [altCols] = await db.query(
-      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'inventory' AND COLUMN_NAME = 'alt_unit'`
-    );
-    if (altCols.length === 0) {
-      console.log("[Migration] Adding alt_unit columns to inventory table...");
-      await db.query(`
-        ALTER TABLE inventory 
-          ADD COLUMN alt_unit VARCHAR(50) DEFAULT NULL AFTER unit,
-          ADD COLUMN alt_unit_conversion DECIMAL(15,4) DEFAULT NULL AFTER alt_unit
-      `);
-      console.log("[Migration] Added alt_unit columns to inventory table.");
-    }
-
-    // 5. Ensure company_details row exists
+    // 6. Ensure company_details row exists
     const [companyRows] = await db.query(`SELECT id FROM company_details WHERE id = 1`);
     if (companyRows.length === 0) {
       console.log("[Migration] Inserting default company_details row...");

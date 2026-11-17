@@ -13,13 +13,16 @@ export const fetchAllProductsDB = async (canShowAll) => {
     `);
     return products;
   } catch (err) {
-    // If min_stock_threshold column does not exist yet on legacy DB schemas, fallback seamlessly
-    if (err.message && err.message.includes("min_stock_threshold")) {
+    // If any newer columns do not exist yet on production database, safely fall back to base columns
+    if (err.message && (err.message.includes("Unknown column") || err.code === "ER_BAD_FIELD_ERROR")) {
+      console.warn("[InventoryRepo] Column missing in inventory table, running legacy query fallback:", err.message);
       const [products] = await db.query(`
         SELECT 
-          id, hsn, name, category, type, unit, alt_unit, alt_unit_conversion, inventory_type, 
-          size, color, available_stock, NULL as min_stock_threshold, buying_price, 
-          selling_price, last_sold_price, conversion_rate, created_by, created_at, updated_at 
+          id, hsn, name, category, type, unit,
+          NULL as alt_unit, NULL as alt_unit_conversion,
+          inventory_type, size, color, available_stock,
+          NULL as min_stock_threshold, buying_price, selling_price,
+          NULL as last_sold_price, conversion_rate, created_by, created_at, updated_at 
         FROM inventory 
         WHERE ${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"}
         ORDER BY created_at DESC
