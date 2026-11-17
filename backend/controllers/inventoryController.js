@@ -6,7 +6,8 @@ export const getAllProducts = async (req, res) => {
     const data = await inventoryService.getFormattedProducts(user);
     res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching inventory" });
+    console.error("Error fetching inventory:", error);
+    res.status(500).json({ message: "Error fetching inventory", error: error.message });
   }
 };
 
