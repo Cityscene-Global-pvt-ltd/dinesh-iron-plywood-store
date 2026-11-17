@@ -135,15 +135,15 @@ const InventoryTable = ({
                   {(isSuperAdmin ||
                     isAdmin ||
                     user?.role === "INVENTORY_MANAGER") && (
-                    <IconButton
-                      variant="ghost"
-                      size="sm"
-                      colorPalette="blue"
-                      onClick={() => onEdit(product)}
-                    >
-                      <MdEdit />
-                    </IconButton>
-                  )}
+                      <IconButton
+                        variant="ghost"
+                        size="sm"
+                        colorPalette="blue"
+                        onClick={() => onEdit(product)}
+                      >
+                        <MdEdit />
+                      </IconButton>
+                    )}
                   {(isSuperAdmin || isAdmin) && (
                     <IconButton
                       variant="ghost"

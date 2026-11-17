@@ -215,56 +215,63 @@ export const SupplierPDFDocument = ({
         </View>
 
         {(source?.transportName ||
+          source?.transport_name ||
           source?.transportContact ||
+          source?.transport_contact ||
           source?.lrNumber ||
+          source?.lr_number ||
           source?.transportMode ||
+          source?.transport_mode ||
           source?.expectedDeliveryDate ||
-          safeNum(source?.freightAmount) > 0 ||
+          source?.expected_delivery_date ||
+          safeNum(source?.freightAmount || source?.freight_amount) > 0 ||
           source?.transportNotes ||
-          data?.vehicleNumber) && (
+          source?.transport_notes ||
+          data?.vehicleNumber ||
+          data?.vehicle_number) && (
           <View style={styles.transportBox} wrap={false}>
             <Text style={styles.sectionLabel}>Transport & Logistics Details</Text>
             <View style={styles.transportGrid}>
-              {source?.transportName && (
+              {(source?.transportName || source?.transport_name) && (
                 <View style={styles.transportItem}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport / Transporter:</Text>
-                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source.transportName}</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source?.transportName || source?.transport_name}</Text>
                 </View>
               )}
-              {source?.transportContact && (
+              {(source?.transportContact || source?.transport_contact) && (
                 <View style={styles.transportItem}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport Contact:</Text>
-                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source.transportContact}</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source?.transportContact || source?.transport_contact}</Text>
                 </View>
               )}
-              {(source?.lrNumber || data?.vehicleNumber) && (
+              {(source?.lrNumber || source?.lr_number || data?.vehicleNumber || data?.vehicle_number) && (
                 <View style={styles.transportItem}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>LR / Bilty / Vehicle No:</Text>
-                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source?.lrNumber || data?.vehicleNumber}</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source?.lrNumber || source?.lr_number || data?.vehicleNumber || data?.vehicle_number}</Text>
                 </View>
               )}
-              {source?.transportMode && (
+              {(source?.transportMode || source?.transport_mode) && (
                 <View style={styles.transportItem}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport Mode:</Text>
-                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source.transportMode}</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{source?.transportMode || source?.transport_mode}</Text>
                 </View>
               )}
-              {source?.expectedDeliveryDate && (
+              {(source?.expectedDeliveryDate || source?.expected_delivery_date) && (
                 <View style={styles.transportItem}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>Expected Delivery:</Text>
-                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{formatDate(source.expectedDeliveryDate)}</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>{formatDate(source?.expectedDeliveryDate || source?.expected_delivery_date)}</Text>
                 </View>
               )}
-              {safeNum(source?.freightAmount) > 0 && (
+              {safeNum(source?.freightAmount || source?.freight_amount) > 0 && (
                 <View style={styles.transportItem}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>Freight Amount:</Text>
-                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>₹{safeNum(source.freightAmount).toFixed(2)}</Text>
+                  <Text style={{ fontWeight: "bold", fontSize: 8 }}>₹{safeNum(source?.freightAmount || source?.freight_amount).toFixed(2)}</Text>
                 </View>
               )}
-              {source?.transportNotes && (
+              {(source?.transportNotes || source?.transport_notes) && (
                 <View style={[styles.transportItem, { width: "100%", marginTop: 2 }]}>
                   <Text style={{ fontSize: 7, color: "#6b7280" }}>Transport Notes:</Text>
-                  <Text style={{ fontSize: 8 }}>{source.transportNotes}</Text>
+                  <Text style={{ fontSize: 8 }}>{source?.transportNotes || source?.transport_notes}</Text>
                 </View>
               )}
             </View>
