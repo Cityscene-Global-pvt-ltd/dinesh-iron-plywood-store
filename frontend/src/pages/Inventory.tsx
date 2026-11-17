@@ -1,4 +1,3 @@
-
 import {
   Box,
   HStack,
@@ -51,7 +50,7 @@ import { useSearchParams } from "react-router-dom";
 
 const Inventory = () => {
   const { isSuperAdmin } = useAuth();
-  const { exportFormat } = useSystemSettings();
+  const { exportFormat, minThreshold: globalMinThreshold } = useSystemSettings();
   const { data: allProducts = [], isLoading } = useGetInventoryQuery();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadInventory, { isLoading: isUploading }] =
@@ -119,7 +118,7 @@ const Inventory = () => {
         { label: "All Stock", value: "ALL" },
         { label: "In Stock (>0)", value: "IN_STOCK" },
         { label: "Out of Stock (0)", value: "OUT_OF_STOCK" },
-        { label: "Low Stock (≤5)", value: "LOW_STOCK" },
+        { label: "Low Stock (Item / Global)", value: "LOW_STOCK" },
       ],
     });
   }, []);
@@ -145,12 +144,17 @@ const Inventory = () => {
 
     let matchesStock = true;
     const stock = Number(p.availableStock || 0);
+    const threshold =
+      p.minStockThreshold !== undefined && p.minStockThreshold !== null
+        ? Number(p.minStockThreshold)
+        : Number(globalMinThreshold || 5);
+
     if (stockFilter === "IN_STOCK") {
       matchesStock = stock > 0;
     } else if (stockFilter === "OUT_OF_STOCK") {
       matchesStock = stock <= 0;
     } else if (stockFilter === "LOW_STOCK") {
-      matchesStock = stock <= 5;
+      matchesStock = stock <= threshold;
     }
 
     return matchesTab && matchesSearch && matchesUnit && matchesStock;

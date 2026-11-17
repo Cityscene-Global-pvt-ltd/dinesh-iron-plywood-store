@@ -10,7 +10,8 @@ export interface Product {
   size: string;
   color: string;
   availableStock: number;
-  buyingPrice: number;
+  minStockThreshold?: number | null;
+  buyingPrice?: number;
   sellingPrice: number;
   inventoryType?: string;
   conversionRate: number;

@@ -35,8 +35,12 @@ export const createNewProduct = async (data, creator, user) => {
     altUnit: data.altUnit || null,
     altUnitConversion: data.altUnitConversion || null,
     availableStock: data.availableStock || 0,
-    buyingPrice: data.buyingPrice || 0,
-    sellingPrice: data.sellingPrice || 0,
+    minStockThreshold:
+      data.minStockThreshold !== undefined && data.minStockThreshold !== null && data.minStockThreshold !== ""
+        ? Number(data.minStockThreshold)
+        : null,
+    buyingPrice: data.buyingPrice ? Number(data.buyingPrice) : 0,
+    sellingPrice: data.sellingPrice ? Number(data.sellingPrice) : 0,
     conversionRate: data.conversionRate || 1,
     creator,
   };
@@ -85,9 +89,13 @@ export const modifyProduct = async (id, data, user) => {
     unit: data.unit || null,
     altUnit: data.altUnit || null,
     altUnitConversion: data.altUnitConversion || null,
-    availableStock: data.availableStock || 0,
-    buyingPrice: data.buyingPrice || 0,
-    sellingPrice: data.sellingPrice || 0,
+    availableStock: data.availableStock !== undefined ? Number(data.availableStock) : 0,
+    minStockThreshold:
+      data.minStockThreshold !== undefined && data.minStockThreshold !== null && data.minStockThreshold !== ""
+        ? Number(data.minStockThreshold)
+        : null,
+    buyingPrice: data.buyingPrice !== undefined && data.buyingPrice !== null ? Number(data.buyingPrice) : 0,
+    sellingPrice: data.sellingPrice !== undefined && data.sellingPrice !== null ? Number(data.sellingPrice) : 0,
     conversionRate: data.conversionRate || 1,
   };
 
@@ -115,6 +123,11 @@ export const modifyProduct = async (id, data, user) => {
   }
   if (oldProduct.hsn !== formattedData.hsn) {
     changes.push(`hsn: ${oldProduct.hsn} -> ${formattedData.hsn}`);
+  }
+  if (oldProduct.minStockThreshold !== formattedData.minStockThreshold) {
+    changes.push(
+      `Min Threshold: ${oldProduct.minStockThreshold ?? "Global"} -> ${formattedData.minStockThreshold ?? "Global"}`,
+    );
   }
   if (changes.length > 0) {
     const targets = [{ target_type: "ROLE", target_value: "SUPER_ADMIN" }];
@@ -208,6 +221,8 @@ export const bulkImportInventory = async (file, user) => {
     const hsn = getCellValue("hsn").toString().trim().toUpperCase();
     const name = getCellValue("Name").toString().trim();
     const stock = Number(getCellValue("Stock") || 0);
+    const minThresholdRaw = getCellValue("min_stock_threshold") || getCellValue("low_stock_threshold");
+    const minThreshold = minThresholdRaw ? Number(minThresholdRaw) : null;
     const buyPrice = Number(getCellValue("buying_price") || 0);
     const sellPrice = Number(getCellValue("selling_price") || 0);
     const conversionRate = Number(getCellValue("conversion_rate") || 1);
@@ -224,6 +239,7 @@ export const bulkImportInventory = async (file, user) => {
       getCellValue("Size") || null,
       getCellValue("Color") || null,
       stock,
+      minThreshold,
       buyPrice,
       sellPrice,
       conversionRate,

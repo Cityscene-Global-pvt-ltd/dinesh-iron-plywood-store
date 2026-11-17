@@ -24,6 +24,7 @@ export const InventoryModal = ({
     size: "",
     color: "",
     availableStock: 0,
+    minStockThreshold: undefined,
     buyingPrice: 0,
     sellingPrice: 0,
     conversionRate: 1,
@@ -48,6 +49,7 @@ export const InventoryModal = ({
         size: "",
         color: "",
         availableStock: 0,
+        minStockThreshold: undefined,
         buyingPrice: 0,
         sellingPrice: 0,
         conversionRate: 1,
@@ -59,8 +61,19 @@ export const InventoryModal = ({
     let finalValue = value;
 
     if (["buyingPrice", "sellingPrice"].includes(field)) {
-      const num = Number(value);
-      finalValue = isNaN(num) || num < 0 ? 0 : num;
+      if (value === "" || value === null || value === undefined) {
+        finalValue = field === "buyingPrice" ? undefined : 0;
+      } else {
+        const num = Number(value);
+        finalValue = isNaN(num) || num < 0 ? 0 : num;
+      }
+    } else if (field === "minStockThreshold") {
+      if (value === "" || value === null || value === undefined) {
+        finalValue = undefined;
+      } else {
+        const num = Number(value);
+        finalValue = isNaN(num) || num < 0 ? undefined : num;
+      }
     }
 
     setFormData((prev) => ({ ...prev, [field]: finalValue }));
@@ -77,23 +90,22 @@ export const InventoryModal = ({
       errors.push("Product name must be at least 3 characters");
     }
 
-    // if (
-    //   data.availableStock === undefined ||
-    //   data.availableStock === null ||
-    //   data.availableStock < 0
-    // ) {
-    //   errors.push("Available stock must be 1 or more");
-    // }
-
-    if (!data.buyingPrice || data.buyingPrice <= 0) {
-      errors.push("Buying price must be greater than 0");
+    // Buying price is now OPTIONAL (not mandatory). If provided, it must not be negative.
+    if (data.buyingPrice !== undefined && data.buyingPrice !== null && data.buyingPrice < 0) {
+      errors.push("Buying price cannot be negative");
     }
 
     if (!data.sellingPrice || data.sellingPrice <= 0) {
       errors.push("Selling price must be greater than 0");
     }
 
-    if (data.sellingPrice < data.buyingPrice) {
+    // Only validate sellingPrice < buyingPrice if a buying price was actually entered (> 0)
+    if (
+      data.buyingPrice !== undefined &&
+      data.buyingPrice !== null &&
+      Number(data.buyingPrice) > 0 &&
+      Number(data.sellingPrice) < Number(data.buyingPrice)
+    ) {
       errors.push("Selling price cannot be less than buying price");
     }
 
@@ -232,7 +244,7 @@ export const InventoryModal = ({
             <Field.Label>Alt Unit Conversion</Field.Label>
             <Input
               type="number"
-              value={formData.altUnitConversion || ""}
+              value={formData.altUnitConversion ?? ""}
               placeholder="e.g. 12 (1 BOX = 12 PCS)"
               min={0}
               onChange={(e) =>
@@ -260,11 +272,12 @@ export const InventoryModal = ({
               placeholder="Color"
             />
           </Field.Root>
+
           <Field.Root>
             <Field.Label>Conversion Rate *</Field.Label>
             <Input
               type="number"
-              value={formData.conversionRate || ""}
+              value={formData.conversionRate ?? ""}
               placeholder="0"
               min={0}
               onChange={(e) =>
@@ -279,34 +292,36 @@ export const InventoryModal = ({
           </Field.Root>
         </Grid>
 
-        <Grid templateColumns="1fr 1fr 1fr" gap={4}>
+        <Grid templateColumns="1fr 1fr 1fr 1fr" gap={4}>
           <Field.Root>
             <Field.Label>Stock *</Field.Label>
             <Input
               type="number"
-              value={formData.availableStock || ""}
+              value={formData.availableStock ?? ""}
               placeholder="0"
               min={0}
               onChange={(e) =>
                 handleChange("availableStock", Number(e.target.value))
               }
-              // onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              // onKeyDown={(e) =>
-              //   ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
-              // }
               readOnly={isViewMode}
             />
           </Field.Root>
 
           <Field.Root>
-            <Field.Label>Buying Price *</Field.Label>
+            <Field.Label>
+              Low Stock Alert
+            </Field.Label>
             <Input
               type="number"
-              value={formData.buyingPrice || ""}
-              placeholder="0"
+              value={
+                formData.minStockThreshold !== undefined && formData.minStockThreshold !== null
+                  ? formData.minStockThreshold
+                  : ""
+              }
+              placeholder="Default: 5"
               min={0}
               onChange={(e) =>
-                handleChange("buyingPrice", Number(e.target.value))
+                handleChange("minStockThreshold", e.target.value)
               }
               onWheel={(e) => (e.target as HTMLInputElement).blur()}
               onKeyDown={(e) =>
@@ -314,13 +329,43 @@ export const InventoryModal = ({
               }
               readOnly={isViewMode}
             />
+            <Text fontSize="2xs" color="gray.500" mt={0.5}>
+              Item-specific threshold
+            </Text>
+          </Field.Root>
+
+          <Field.Root>
+            <Field.Label>
+              Buying Price
+            </Field.Label>
+            <Input
+              type="number"
+              value={
+                formData.buyingPrice !== undefined && formData.buyingPrice !== null
+                  ? formData.buyingPrice
+                  : ""
+              }
+              placeholder="Optional"
+              min={0}
+              onChange={(e) =>
+                handleChange("buyingPrice", e.target.value)
+              }
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onKeyDown={(e) =>
+                ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()
+              }
+              readOnly={isViewMode}
+            />
+            <Text fontSize="2xs" color="gray.500" mt={0.5}>
+              Optional
+            </Text>
           </Field.Root>
 
           <Field.Root>
             <Field.Label>Selling Price *</Field.Label>
             <Input
               type="number"
-              value={formData.sellingPrice || ""}
+              value={formData.sellingPrice ?? ""}
               placeholder="0"
               min={0}
               onChange={(e) =>

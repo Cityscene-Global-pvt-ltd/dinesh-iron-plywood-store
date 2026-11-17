@@ -4,7 +4,7 @@ export const fetchAllProductsDB = async (canShowAll) => {
   const [products] = await db.query(`
     SELECT 
       id, hsn, name, category, type, unit, alt_unit, alt_unit_conversion, inventory_type, 
-      size, color, available_stock, buying_price, 
+      size, color, available_stock, min_stock_threshold, buying_price, 
       selling_price, last_sold_price, conversion_rate, created_by, created_at, updated_at 
     FROM inventory 
     WHERE ${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"}
@@ -49,10 +49,10 @@ export const insertProductDB = async (data) => {
   const query = `
     INSERT INTO inventory (
       id, hsn, name, category, type, inventory_type, 
-      size, color, unit, alt_unit, alt_unit_conversion, available_stock, buying_price, 
+      size, color, unit, alt_unit, alt_unit_conversion, available_stock, min_stock_threshold, buying_price, 
       selling_price, conversion_rate, created_by, created_at, updated_at
     ) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
   `;
 
   await db.query(query, [
@@ -68,6 +68,7 @@ export const insertProductDB = async (data) => {
     data.altUnit,
     data.altUnitConversion,
     data.availableStock,
+    data.minStockThreshold,
     data.buyingPrice,
     data.sellingPrice,
     data.conversionRate,
@@ -82,7 +83,7 @@ export const updateProductDB = async (id, data) => {
       hsn = ?, name = ?, category = ?, type = ?, 
       inventory_type = ?, size = ?, color = ?, unit = ?, 
       alt_unit = ?, alt_unit_conversion = ?,
-      available_stock = ?, buying_price = ?, 
+      available_stock = ?, min_stock_threshold = ?, buying_price = ?, 
       selling_price = ?, conversion_rate = ?, updated_at = NOW()
     WHERE id = ?
   `;
@@ -98,6 +99,7 @@ export const updateProductDB = async (id, data) => {
     data.altUnit,
     data.altUnitConversion,
     data.availableStock,
+    data.minStockThreshold,
     data.buyingPrice,
     data.sellingPrice,
     data.conversionRate,
@@ -122,19 +124,24 @@ export const checkLowStockThresholdsDB = async (productIds, canShowAll) => {
     "SELECT `value` FROM settings WHERE `key` = 'min_threshold'",
   );
 
-  const thresholdValue =
+  const defaultThreshold =
     settingRows.length > 0 ? parseInt(settingRows[0].value, 10) : 5;
 
   const placeholders = idsArray.map(() => "?").join(",");
 
+  // Use COALESCE(min_stock_threshold, ?) so per-item threshold takes precedence over global default
   const query = `
-    SELECT id AS product_id, name AS product_name, available_stock AS current_stock, ? AS threshold_value
+    SELECT 
+      id AS product_id, 
+      name AS product_name, 
+      available_stock AS current_stock, 
+      COALESCE(min_stock_threshold, ?) AS threshold_value
     FROM inventory 
     WHERE id IN (${placeholders}) 
-    AND available_stock <= ?
+    AND available_stock <= COALESCE(min_stock_threshold, ?)
     AND (${canShowAll ? "1=1" : "inventory_type = 'PAKKA'"})
   `;
-  const params = [thresholdValue, ...idsArray, thresholdValue];
+  const params = [defaultThreshold, ...idsArray, defaultThreshold];
   const [rows] = await db.query(query, params);
 
   return rows;
@@ -143,7 +150,7 @@ export const checkLowStockThresholdsDB = async (productIds, canShowAll) => {
 export const bulkInsertInventoryDB = async (dataArray) => {
   const query = `
     INSERT INTO inventory 
-    (id, hsn, name, category, type, inventory_type, unit, size, color, available_stock, buying_price, selling_price, conversion_rate, created_by, alt_unit, alt_unit_conversion) 
+    (id, hsn, name, category, type, inventory_type, unit, size, color, available_stock, min_stock_threshold, buying_price, selling_price, conversion_rate, created_by, alt_unit, alt_unit_conversion) 
     VALUES ?
   `;
 

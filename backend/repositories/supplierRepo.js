@@ -175,16 +175,24 @@ export const insertSupplierOrderTx = async (data) => {
     await connection.query(
       `INSERT INTO supplier_orders (
         id, supplier_id, order_number, order_date, order_type,
+        transport_name, transport_contact, lr_number, transport_mode, expected_delivery_date, freight_amount, transport_notes,
         billing_name, billing_email, billing_mobile, billing_address, billing_gst,
         shipping_name, shipping_email, shipping_mobile, shipping_address, shipping_gst,
         gst_type, subtotal, total_gst_amount, total_amount, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.id,
         data.supplierId,
         data.orderNumber,
         data.orderDate,
         data.orderType,
+        data.transportName || null,
+        data.transportContact || null,
+        data.lrNumber || null,
+        data.transportMode || "ROAD",
+        data.expectedDeliveryDate || null,
+        data.freightAmount ? Number(data.freightAmount) : 0,
+        data.transportNotes || null,
         data.billingName,
         data.billingEmail,
         data.billingMobile,
@@ -252,6 +260,7 @@ export const updateSupplierOrderTx = async (orderId, data) => {
     await connection.query(
       `UPDATE supplier_orders SET 
         supplier_id = ?, order_number = ?, order_date = ?, 
+        transport_name = ?, transport_contact = ?, lr_number = ?, transport_mode = ?, expected_delivery_date = ?, freight_amount = ?, transport_notes = ?,
         billing_name = ?, billing_email = ?, billing_mobile = ?, billing_address = ?, billing_gst = ?,
         shipping_name = ?, shipping_email = ?, shipping_mobile = ?, shipping_address = ?, shipping_gst = ?,
         gst_type = ?, subtotal = ?, total_gst_amount = ?, total_amount = ?
@@ -260,6 +269,13 @@ export const updateSupplierOrderTx = async (orderId, data) => {
         data.supplierId,
         data.orderNumber,
         data.orderDate,
+        data.transportName || null,
+        data.transportContact || null,
+        data.lrNumber || null,
+        data.transportMode || "ROAD",
+        data.expectedDeliveryDate || null,
+        data.freightAmount ? Number(data.freightAmount) : 0,
+        data.transportNotes || null,
         data.billingName,
         data.billingEmail,
         data.billingMobile,

@@ -101,6 +101,13 @@ export const AddNewOrder = ({
     poNumber: "",
     poDate: getISTDateString(new Date()),
     gstType: "LOCAL" as "LOCAL" | "INTERSTATE" | "NONE",
+    transportName: "",
+    transportContact: "",
+    lrNumber: "",
+    transportMode: "ROAD",
+    expectedDeliveryDate: "",
+    freightAmount: 0,
+    transportNotes: "",
   });
 
   const [poMode, setPoMode] = useState<"AUTO" | "MANUAL">("AUTO");
@@ -166,6 +173,17 @@ export const AddNewOrder = ({
           poNumber: orderData.orderNumber || "",
           poDate: getISTDateString(new Date(orderData.orderDate)),
           gstType: orderData.gstType || "LOCAL",
+          transportName: orderData.transportName || orderData.transport_name || "",
+          transportContact: orderData.transportContact || orderData.transport_contact || "",
+          lrNumber: orderData.lrNumber || orderData.lr_number || "",
+          transportMode: orderData.transportMode || orderData.transport_mode || "ROAD",
+          expectedDeliveryDate: orderData.expectedDeliveryDate
+            ? getISTDateString(new Date(orderData.expectedDeliveryDate))
+            : orderData.expected_delivery_date
+              ? getISTDateString(new Date(orderData.expected_delivery_date))
+              : "",
+          freightAmount: Number(orderData.freightAmount ?? orderData.freight_amount ?? 0),
+          transportNotes: orderData.transportNotes || orderData.transport_notes || "",
         });
 
         const normalizedItems = (orderData.items || []).map((i: any) => ({
@@ -210,6 +228,13 @@ export const AddNewOrder = ({
           poNumber: "",
           poDate: getISTDateString(new Date()),
           gstType: "LOCAL",
+          transportName: "",
+          transportContact: "",
+          lrNumber: "",
+          transportMode: "ROAD",
+          expectedDeliveryDate: "",
+          freightAmount: 0,
+          transportNotes: "",
         });
         setSelectedItems([]);
         setPoMode("AUTO");
@@ -236,6 +261,20 @@ export const AddNewOrder = ({
           { label: "5%", value: "5" },
           { label: "9%", value: "9" },
           { label: "18%", value: "18" },
+        ],
+      }),
+    [],
+  );
+
+  const transportModeCollection = useMemo(
+    () =>
+      createListCollection({
+        items: [
+          { label: "Road", value: "ROAD" },
+          { label: "Rail", value: "RAIL" },
+          { label: "Air", value: "AIR" },
+          { label: "Sea", value: "SEA" },
+          { label: "Courier", value: "COURIER" },
         ],
       }),
     [],
@@ -625,6 +664,136 @@ export const AddNewOrder = ({
             />
           </Stack>
         </Grid>
+
+        <Box
+          p={4}
+          bg="gray.50"
+          borderRadius="md"
+          border="1px solid"
+          borderColor="gray.200"
+        >
+          <Text fontWeight="bold" mb={3} color="brand.800">
+            Transport & Logistics Details
+          </Text>
+          <Grid templateColumns="repeat(3, 1fr)" gap={3}>
+            <Field.Root>
+              <Field.Label fontSize="xs">Transport / Transporter Name</Field.Label>
+              <Input
+                size="sm"
+                placeholder="e.g. VRL Logistics, SafeX"
+                value={formData.transportName || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, transportName: e.target.value })
+                }
+                readOnly={isReadOnly}
+                bg="white"
+              />
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label fontSize="xs">Transport Contact / Driver No.</Field.Label>
+              <Input
+                size="sm"
+                placeholder="e.g. 9876543210"
+                value={formData.transportContact || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, transportContact: e.target.value })
+                }
+                readOnly={isReadOnly}
+                bg="white"
+              />
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label fontSize="xs">LR / Bilty Number</Field.Label>
+              <Input
+                size="sm"
+                placeholder="Lorry Receipt No."
+                value={formData.lrNumber || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, lrNumber: e.target.value })
+                }
+                readOnly={isReadOnly}
+                bg="white"
+              />
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label fontSize="xs">Transport Mode</Field.Label>
+              <SelectRoot
+                collection={transportModeCollection}
+                value={[formData.transportMode || "ROAD"]}
+                onValueChange={(e) =>
+                  setFormData({ ...formData, transportMode: e.value[0] || "ROAD" })
+                }
+                disabled={isReadOnly}
+                size="sm"
+              >
+                <SelectTrigger bg="white">
+                  <SelectValueText />
+                </SelectTrigger>
+                <SelectContent portalled={false}>
+                  {transportModeCollection.items.map((i) => (
+                    <SelectItem item={i} key={i.value}>
+                      {i.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </SelectRoot>
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label fontSize="xs">Expected Delivery Date</Field.Label>
+              <Input
+                size="sm"
+                type="date"
+                value={formData.expectedDeliveryDate || ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    expectedDeliveryDate: e.target.value,
+                  })
+                }
+                readOnly={isReadOnly}
+                bg="white"
+              />
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label fontSize="xs">Freight Amount (₹)</Field.Label>
+              <Input
+                size="sm"
+                type="number"
+                min={0}
+                placeholder="0"
+                value={formData.freightAmount ?? ""}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    freightAmount: Number(e.target.value) || 0,
+                  })
+                }
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                readOnly={isReadOnly}
+                bg="white"
+              />
+            </Field.Root>
+          </Grid>
+
+          <Field.Root mt={3}>
+            <Field.Label fontSize="xs">Transport / Delivery Notes</Field.Label>
+            <Input
+              size="sm"
+              placeholder="e.g. Delivery at godown gate #2, fragile items"
+              value={formData.transportNotes || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, transportNotes: e.target.value })
+              }
+              readOnly={isReadOnly}
+              bg="white"
+            />
+          </Field.Root>
+        </Box>
 
         <Separator />
 

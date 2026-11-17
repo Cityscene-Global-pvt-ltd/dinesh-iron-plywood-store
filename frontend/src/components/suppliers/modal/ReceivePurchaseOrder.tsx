@@ -135,8 +135,8 @@ export const ReceivePurchaseOrder = ({
       } else if (orderData) {
         setBillNumber("");
         setBillDate(getISTDateString(new Date()));
-        setVehicleNumber("");
-        setFreight(0);
+        setVehicleNumber(orderData.lrNumber || orderData.lr_number || "");
+        setFreight(Number(orderData.freightAmount || orderData.freight_amount || 0));
         setAmountPaid(0);
         setReferenceNo("");
         setPaymentMode("CASH");
